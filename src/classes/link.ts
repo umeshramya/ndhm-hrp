@@ -11,6 +11,7 @@ type HI_TYPES =
   | "HealthDocumentRecord"
   | "WellnessRecord"
   | "InitialAssessment" // not part abdm
+  | "DietaryRecord"
   
 
 export default class Link extends Header {
