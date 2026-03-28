@@ -28,9 +28,8 @@ export default class Request {
           if (err) {
             console.log("ABDM request sent", JSON.stringify(requestBody), "ERROR", JSON.stringify(err))
             reject(err);
-          } else {
-            console.log("ABDM request sent", JSON.stringify(requestBody), "responce", JSON.stringify(res))
-            resolve(res);
+          }else{
+            resolve(res)
           }
         }
       );

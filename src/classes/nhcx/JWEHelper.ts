@@ -35,7 +35,7 @@ export default class JWEHelper {
       .update(buffer)
       .final();
 
-      console.log(encrypted)
+  
     return encrypted;
   }
 

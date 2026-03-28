@@ -26,7 +26,6 @@ export default class Register {
         }
 
         const url = `${this.baseUrl}v0.5/sessions` 
-        console.log(url)
         const headers = {
             "Content-Type": "application/json"
         }
