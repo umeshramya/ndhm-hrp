@@ -17,7 +17,8 @@ export const HcxStatus = [
     "x-hcx-recipient_code": string;
     "x-hcx-correlation_id": string;
     "x-hcx-ben-abha-id" : string
-    "x-hcx-use_case" ? : "New" | "Enhancement"
+    "x-hcx-use_case" ? : "New" | "Enhancement",
+    "x-user-token"?:string
   }
 
 
