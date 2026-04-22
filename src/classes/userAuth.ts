@@ -13,8 +13,7 @@ export default class UserAuth extends Header{
 
     fetchModes= async (config: { healthId: string, hipId: string, hipType: string, purpose: Purpose }): Promise<any> => {
         const headers = this.headers(config.healthId)
-        // const url = `${this.baseUrl}v0.5/users/auth/fetch-modes`;
-        const url = `${this.baseUrl}api/v3/identity/authentication`;
+        const url = `${this.baseUrl}v0.5/users/auth/fetch-modes`;
         const body = {
             "requestId": uuidv4(),
             "timestamp": new Date().toISOString(),
@@ -40,8 +39,7 @@ export default class UserAuth extends Header{
     init = async (config: { healthId: string, hipId: string, hipType: string, purpose: Purpose, authMode: "MOBILE_OTP" | "DEMOGRAPHICS" | "AADHAAR_OTP" }): Promise<any> => {
         
         const headers = this.headers(config.healthId)
-        // const url = `${this.baseUrl}v0.5/users/auth/init`
-        const url = `${this.baseUrl}api/v3/identity/authentication`
+        const url = `${this.baseUrl}v0.5/users/auth/init`
 
         const body = {
             "requestId": uuidv4(),
@@ -74,8 +72,8 @@ export default class UserAuth extends Header{
         }
     } }) => {
         const headers = this.headers(config.healthId)
-        // const url = `${this.baseUrl}v0.5/users/auth/confirm`
-        const url=`${this.baseUrl}api/v3/identity/authentication`
+        const url = `${this.baseUrl}v0.5/users/auth/confirm`
+
 
         const body = {
             "requestId": uuidv4(),
