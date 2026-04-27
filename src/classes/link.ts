@@ -20,92 +20,147 @@ export default class Link extends Header {
   }
 
   /**
+   * Adds care contexts to a patient's ABHA account using the v3 HIE-CM endpoint.
    *
-   * @param config healthis with Xcmid
-   * @returns
+   * This replaces the deprecated v0.5 `AddContext` method. It requires a
+   * `linkToken` (obtained via `generateToken`) and sends patient care-context
+   * data with `hiType` and `count` fields.
+   *
+   * Headers are built inline following the existing `generateToken` v3 pattern.
+   *
+   * @param config - Configuration object
+   * @param config.healthId - Patient's health ID used to derive X-CM-ID header
+   * @param config.hipId - HIP ID sent as X-HIP-ID header
+   * @param config.linkToken - Link token obtained from HIE-CM token generation
+   * @param config.abhaNumber - Patient's ABHA number
+   * @param config.abhaAddress - Patient's ABHA address
+   * @param config.patients - Array of patient care-context entries, each with:
+   *   - referenceNumber - Patient reference (encounter ID) in HIP system
+   *   - display - Display name for the patient
+   *   - careContexts - Array of { referenceNumber, display }
+   *   - hiType - Type of health information (HI_TYPES)
+   *   - count - Number of care contexts
+   * @param config.requestId - Optional UUID for REQUEST-ID header (auto-generated if omitted)
+   * @param config.timestamp - Optional ISO timestamp for TIMESTAMP header (auto-generated if omitted)
+   * @returns The parsed API response
    */
-  AddContext = async (config: {
+  addCareContext = async (config: {
     healthId: string;
-    careContextAccessToken: string;
-    patientId: string;
-    patinetDisplay: string;
-    careContextId: string;
-    careContextDisplay: string;
+    hipId: string;
+    linkToken: string;
+    abhaNumber: string;
+    abhaAddress: string;
+    patients: Array<{
+      referenceNumber: string;
+      display: string;
+      careContexts: Array<{
+        referenceNumber: string;
+        display: string;
+      }>;
+      hiType: HI_TYPES;
+      count: number;
+    }>;
+    requestId?: string;
+    timestamp?: string;
   }) => {
-    const headers = this.headers(config.healthId);
-    const url = `${this.baseUrl}v0.5/links/link/add-contexts`;
+    this.setXCmId(config.healthId);
+    const headers = {
+      "REQUEST-ID": config.requestId ?? uuidv4(),
+      TIMESTAMP: config.timestamp ?? new Date().toISOString(),
+      "X-HIP-ID": config.hipId,
+      "X-LINK-TOKEN": config.linkToken,
+      "X-CM-ID": this.xCmId,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.accessToken}`,
+    };
+    const url = `${this.baseUrl}api/hiecm/hip/v3/link/carecontext`;
     const body = {
-      requestId: uuidv4(),
-      timestamp: new Date().toISOString(),
-      link: {
-        accessToken: config.careContextAccessToken,
-        patient: {
-          referenceNumber: config.patientId,
-          display: config.patinetDisplay,
-          careContexts: [
-            {
-              referenceNumber: config.careContextId,
-              display: config.careContextDisplay,
-            },
-          ],
-        },
-      },
+      abhaNumber: config.abhaNumber,
+      abhaAddress: config.abhaAddress,
+      patient: config.patients,
     };
 
-    await new Request().request({
-      headers: headers,
+    const response = await new Request().request({
+      headers,
       method: "POST",
       requestBody: body,
-      url: url,
+      url,
     });
 
-    return body;
+    return JSON.parse(response.body);
   };
 
   /**
-   * Result of patient care-context link request from HIP end. This happens in context of previous discovery of patient found at HIP end, therefore the link requests ought to be in reference to the patient reference and care-context references previously returned by the HIP. The correlation of discovery and link request is maintained through the transactionId. HIP should have
-   * @param config
-   * 
-   * Validated transactionId in the request to check whether there was a discovery done previously, and the link request corresponds to returned patient care care context references
-Before returning the response, HIP should have sent an authentication request to the patient(eg: OTP verification)
-HIP should communicate the mode of authentication of a successful request
-HIP subsequently should expect the token passed via /link/confirm against the link.referenceNumber passed in this call
-The error section in the body, represents the potential errors that may have occurred. Possible reasons:
-
-Patient reference number is invalid
-Care context reference numbers are invalid
+   * HMIS/LMIS response to the HIE-CM callback for user-initiated linking (v3).
+   *
+   * This is called by the HIP in response to the discovery callback (section 5.3.2).
+   * The HIP validates the transactionId against a previous discovery, sends an
+   * authentication request to the patient (e.g. OTP), and returns the link
+   * reference number with authentication metadata. The patient subsequently passes
+   * the token via `/link/care-context/confirm` against the `link.referenceNumber`.
+   *
+   * Uses the v3 HIE-CM endpoint per ABDM M2 Sandbox Documentation v2.8 (section 5.3.7):
+   * `POST /api/hiecm/user-initiated-linking/v3/link/care-context/on-init`
+   *
+   * Possible errors returned:
+   * - Patient reference number is invalid
+   * - Care context reference numbers are invalid
+   *
+   * @param config - Configuration object
+   * @param config.healthId - Patient's ABHA address (e.g. "user@sbx") used to derive X-CM-ID
+   * @param config.transactionId - Transaction ID from the discovery callback, used for correlation
+   * @param config.referenceNumber - Link reference number generated by the HIP for this linking attempt
+   * @param config.authenticationType - Authentication type: "DIRECT" or "MEDIATE"
+   * @param config.communicationMedium - Medium for patient communication (e.g. "MOBILE")
+   * @param config.communicationHint - Hint for the communication (e.g. "OTP")
+   * @param config.communicationExpiry - ISO timestamp for communication expiry (defaults to 10 min from now)
+   * @param config.requestId - Optional UUID for REQUEST-ID header (auto-generated if omitted)
+   * @param config.timestamp - Optional ISO timestamp for TIMESTAMP header (auto-generated if omitted)
+   * @param config.callbackRequestId - The `requestId` from the HIE-CM discovery callback, sent in `response.requestId`
+   * @param config.error - Optional error object if the HIP cannot process the link request
+   * @returns The request body that was sent (for logging/reference)
    */
   onInit = async (config: {
     healthId: string;
     transactionId: string;
     referenceNumber: string;
+    authenticationType: "DIRECT" | "MEDIATE";
+    communicationMedium: string;
     communicationHint: string;
     communicationExpiry?: string;
-    requestId: string;
+    requestId?: string;
+    timestamp?: string;
+    callbackRequestId: string;
     error?: {
       code: number;
       message: string;
     };
   }) => {
-    const headers = this.headers(config.healthId);
-    const url = `${this.baseUrl}v0.5/links/link/on-init`;
+    this.setXCmId(config.healthId);
+    const headers = {
+      "REQUEST-ID": config.requestId ?? uuidv4(),
+      TIMESTAMP: config.timestamp ?? new Date().toISOString(),
+      "X-CM-ID": this.xCmId,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.accessToken}`,
+    };
+    const url = `${this.baseUrl}api/hiecm/user-initiated-linking/v3/link/care-context/on-init`;
+
     const body: any = {
-      requestId: uuidv4(),
-      timestamp: new Date().toISOString(),
       transactionId: config.transactionId,
       link: {
         referenceNumber: config.referenceNumber,
-        authenticationType: "DIRECT",
+        authenticationType: config.authenticationType,
         meta: {
-          communicationMedium: "MOBILE",
+          communicationMedium: config.communicationMedium,
           communicationHint: config.communicationHint,
           communicationExpiry:
-            config.communicationExpiry ||
+            config.communicationExpiry ??
             new Date(new Date().getTime() + 10 * 60000).toISOString(),
         },
       },
-      resp: {
-        requestId: config.requestId,
+      response: {
+        requestId: config.callbackRequestId,
       },
     };
 
@@ -114,93 +169,133 @@ Care context reference numbers are invalid
     }
 
     await new Request().request({
-      headers: headers,
+      headers,
       method: "POST",
       requestBody: body,
-      url: url,
+      url,
     });
-
-    return body;
-  };
-
-  /***
-   * Returns a list of linked care contexts with patient reference number.
-  Validated and linked account reference number
-  Validated that the token sent from Consent Manager is same as the one generated by HIP
-  Verified that same Consent Manager which made the link request is sending the token
-  Results of unmasked linked care contexts with patient reference number
-   */
-  onConfirm = async (config: {
-    healthId: string;
-    careContextAccessToken: string;
-    requestId: string;
-    patientReferenceNumber: string;
-    patinetDisplay: string;
-    careContexts: {
-      referenceNumber: string;
-      display: string;
-    }[];
-    error?: {
-      code: number;
-      message: string;
-    };
-  }) => {
-    const headers = this.headers(config.healthId);
-    const url = `${this.baseUrl}v0.5/links/link/on-confirm`;
-    
-    const body: any = {
-      requestId: uuidv4(),
-      timestamp: new Date().toISOString(),
-      patient: {
-        referenceNumber: config.patientReferenceNumber,
-        display: config.patinetDisplay,
-        careContexts: config.careContexts,
-      },
-
-      resp: {
-        requestId: config.requestId,
-      },
-    };
-
-    if (config.error) {
-      body.error = config.error;
-    }
-
-    await new Request().request({
-      headers: headers,
-      method: "POST",
-      requestBody: body,
-      url: url,
-    });
-
 
     return body;
   };
 
   /**
-   *This API is called by HIP only when there is new health data is added/created for a patient and under a care context that is already linked with patient's Health Account. HIP can send following things in this API to notify the Consent Manager about the new health data added:
-   * @param config
-   * @healthId Patient's Identifier for which the new health data is added (It can be ABDM address or phr address)
-   * @careContextReference   Care Context reference under which the new health data is added
-   * @patientReference  Patient's reference (An identifier with which the patient is registered on HIP)
-   * @hiTypes  Types of health information documents that have been added ("DiagnosticReportRecord" | "DischargeSummaryRecord" | "HealthDocumentRecord" | "ImmunizationRecord" | "OPConsultRecord" | "PrescriptionRecord" | "WellnessRecord")
-   * @date in iso format at UTC A date when the health information was created/added on the HIP Note: This API shouldn't be called if the new heath data of is added/created under new care context.
+   * HMIS/LMIS response on confirm — called by HIP after the patient confirms
+   * the link via OTP/token (User Initiated Linking v3).
+   *
+   * This is the HIP's response to the HIE-CM callback at
+   * `{callback_url}/api/v3/hip/link/care-context/confirm` (section 5.3.10).
+   * The HIP returns the confirmed care contexts that have been linked to the
+   * patient's ABHA account.
+   *
+   * Uses the v3 endpoint per ABDM M2 Sandbox Documentation v2.8 (section 5.3.11):
+   * `POST /api/hiecm/user-initiated-linking/v3/link/care-context/on-confirm`
+   *
+   * @param config - Configuration object
+   * @param config.healthId - Patient's ABHA address (e.g. "user@sbx") used to derive X-CM-ID
+   * @param config.patients - Array of patient care-context entries that were confirmed, each with:
+   *   - referenceNumber - Patient reference in HIP system
+   *   - display - Display name for the patient
+   *   - careContexts - Array of { referenceNumber, display }
+   *   - hiType - Type of health information (HI_TYPES)
+   *   - count - Number of care contexts
+   * @param config.callbackRequestId - The `requestId` from the HIE-CM confirm callback, sent in `response.requestId`
+   * @param config.requestId - Optional UUID for REQUEST-ID header (auto-generated if omitted)
+   * @param config.timestamp - Optional ISO timestamp for TIMESTAMP header (auto-generated if omitted)
+   * @returns The request body that was sent (for logging/reference)
    */
+  onConfirm = async (config: {
+    healthId: string;
+    patients: Array<{
+      referenceNumber: string;
+      display: string;
+      careContexts: Array<{
+        referenceNumber: string;
+        display: string;
+      }>;
+      hiType: HI_TYPES;
+      count: number;
+    }>;
+    callbackRequestId: string;
+    requestId?: string;
+    timestamp?: string;
+  }) => {
+    this.setXCmId(config.healthId);
+    const headers = {
+      "REQUEST-ID": config.requestId ?? uuidv4(),
+      TIMESTAMP: config.timestamp ?? new Date().toISOString(),
+      "X-CM-ID": this.xCmId,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.accessToken}`,
+    };
+    const url = `${this.baseUrl}api/hiecm/user-initiated-linking/v3/link/care-context/on-confirm`;
+    const body = {
+      patient: config.patients,
+      response: {
+        requestId: config.callbackRequestId,
+      },
+    };
 
+    await new Request().request({
+      headers,
+      method: "POST",
+      requestBody: body,
+      url,
+    });
+
+    return body;
+  };
+
+  /**
+   * Notifies the ABDM Consent Manager about new health data added/created for a patient
+   * under an already-linked care context (HIP Initiated Linking v3).
+   *
+   * Called by HIP when new health information is added under a care context that
+   * is already linked with the patient's ABHA account. This API should NOT be called
+   * if the new health data is added under a new (unlinked) care context.
+   *
+   * Uses the v3 HIE-CM endpoint `/api/hiecm/hip/v3/link/context/notify` per the
+   * ABDM M2 Sandbox Documentation v2.8 (section 4.3.6).
+   *
+   * Headers are built inline following the v3 pattern used by `generateToken` and
+   * `addCareContext`, including `X-HIP-ID`, `X-LINK-TOKEN`, `REQUEST-ID`, and
+   * `TIMESTAMP` as required by the v3 API.
+   *
+   * @param config - Configuration object
+   * @param config.healthId - Patient's identifier (ABHA address, e.g. "user@sbx") used to derive X-CM-ID
+   * @param config.hipId - HIP facility ID sent as X-HIP-ID header (e.g. "IN2910000004")
+   * @param config.linkToken - Link token (JWT) obtained from token generation, sent as X-LINK-TOKEN header
+   * @param config.patientReference - Patient's reference number in the HIP system (e.g. ABHA number)
+   * @param config.careContextReference - Care context reference under which new health data was added
+   * @param config.hiTypes - Array of HI types for the new health data (e.g. ["Prescription", "DischargeSummary"])
+   * @param config.date - ISO 8601 UTC date when the health information was created/added on the HIP
+   * @param config.requestId - Optional UUID for REQUEST-ID header (auto-generated if omitted)
+   * @param config.timestamp - Optional ISO timestamp for TIMESTAMP header (auto-generated if omitted)
+   * @returns The request body that was sent (for logging/reference)
+   */
   notify = async (config: {
     healthId: string;
-    patientReference: any;
-    careContextReference: any;
+    hipId: string;
+    linkToken: string;
+    patientReference: string;
+    careContextReference: string;
     hiTypes: HI_TYPES[];
     date: string;
-    hipId: string;
+    requestId?: string;
+    timestamp?: string;
   }) => {
-    const headers = this.headers(config.healthId);
-    const url = `${this.baseUrl}v0.5/links/context/notify`;
+    this.setXCmId(config.healthId);
+    const headers = {
+      "REQUEST-ID": config.requestId ?? uuidv4(),
+      TIMESTAMP: config.timestamp ?? new Date().toISOString(),
+      "X-HIP-ID": config.hipId,
+      "X-LINK-TOKEN": config.linkToken,
+      "X-CM-ID": this.xCmId,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.accessToken}`,
+    };
+    const url = `${this.baseUrl}api/hiecm/hip/v3/link/context/notify`;
 
     const body = {
-      requestId: uuidv4(),
-      timestamp: new Date().toISOString(),
       notification: {
         patient: {
           id: config.healthId,
@@ -218,12 +313,70 @@ Care context reference numbers are invalid
     };
 
     await new Request().request({
-      headers: headers,
+      headers,
       method: "POST",
       requestBody: body,
-      url: url,
+      url,
     });
 
     return body;
+  };
+
+  /**
+   * Generates a patient token (ABDM HIE-CM v3 endpoint) required for HIE (Health Information Exchange) operations.
+   *
+   * This token is needed to authorize subsequent HIE transactions such as data push and data pull requests.
+   * The API uses the v3 endpoint `/api/hiecm/v3/token/generate-token` which requires custom headers
+   * (REQUEST-ID, TIMESTAMP, X-HIP-ID) not present in the standard v0.5 header set.
+   *
+   * @param config - Configuration object for token generation
+   * @param config.healthId - Patient's health ID used to derive the X-CM-ID header (e.g., "user@abdm")
+   * @param config.hipId - Health Information Provider ID sent as X-HIP-ID header
+   * @param config.abhaNumber - Patient's ABHA number (can be numeric or string)
+   * @param config.abhaAddress - Patient's ABHA address (e.g., "user@sbx")
+   * @param config.name - Patient's full name
+   * @param config.gender - Patient's gender
+   * @param config.yearOfBirth - Patient's year of birth
+   * @param config.requestId - Optional UUID for REQUEST-ID header (auto-generated if omitted)
+   * @param config.timestamp - Optional ISO timestamp for TIMESTAMP header (auto-generated if omitted)
+   * @returns The parsed API response containing the generated patient token
+   */
+  generateToken = async (config: {
+    healthId: string;
+    hipId: string;
+    abhaNumber: number | string;
+    abhaAddress: string;
+    name: string;
+    gender: string;
+    yearOfBirth: number;
+    requestId?: string;
+    timestamp?: string;
+  }) => {
+    this.setXCmId(config.healthId);
+    const headers = {
+      "REQUEST-ID": config.requestId ?? uuidv4(),
+      TIMESTAMP: config.timestamp ?? new Date().toISOString(),
+      "X-HIP-ID": config.hipId,
+      "X-CM-ID": this.xCmId,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.accessToken}`,
+    };
+    const url = `${this.baseUrl}api/hiecm/v3/token/generate-token`;
+    const body = {
+      abhaNumber: config.abhaNumber,
+      abhaAddress: config.abhaAddress,
+      name: config.name,
+      gender: config.gender,
+      yearOfBirth: config.yearOfBirth,
+    };
+
+    const response = await new Request().request({
+      headers,
+      method: "POST",
+      requestBody: body,
+      url,
+    });
+
+    return JSON.parse(response.body);
   };
 }

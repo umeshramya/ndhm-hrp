@@ -25,63 +25,62 @@ export default class Patients extends Header {
     super(_baseUrl, _accessToken);
   }
   /**
-   * This API is called by HIP as acknowledgement to notification of consents, in cases of consent revocation and expiration.
-   * @param  config.healthId: string; phradddress or ABHA addrress of patient
-   * @param config.consentId: string; consent id recive by notify callback
-   * @param  config.requestId: string; request id as recived by notify callback
-   * @returns
+   * Sends an SMS notification to a patient about linked care contexts using the v3 HIE-CM endpoint.
+   *
+   * This replaces the deprecated v0.5 `smsNotify2` endpoint. It requires the v3 inline header
+   * pattern (REQUEST-ID, TIMESTAMP, X-CM-ID) and sends a simplified notification payload
+   * containing the patient's phone number and HIP details.
+   *
+   * Headers are built inline following the existing v3 pattern used by `generateToken` and `addCareContext`.
+   *
+   * @param config - Configuration object
+   * @param config.healthId - Patient's health ID used to derive X-CM-ID header (e.g., "unknown@sbx" or "unknown@abdm")
+   * @param config.phoneNo - Patient's phone number for SMS notification
+   * @param config.hipName - Display name of the Health Information Provider (HIP)
+   * @param config.hipId - HIP identifier (e.g., "IN2910000004")
+   * @param config.requestId - Optional UUID for REQUEST-ID header and body (auto-generated if omitted)
+   * @param config.timestamp - Optional ISO timestamp for TIMESTAMP header and body (auto-generated if omitted)
+   * @returns The parsed API response
    */
   smsNotify2 = async (config: {
-    healthId : "unknown@sbx" | "unknown@abdm"
-    phoneNo:string
-    patientName?:string
-    careContextInfo:string
-    deeplinkUrl?:string
-    facilityName?:string
-    hipid:string;
-    errCode?: string;
-    errMessage?: string;
+    healthId: "unknown@sbx" | "unknown@abdm";
+    phoneNo: string;
+    hipName: string;
+    hipId: string;
+    requestId?: string;
+    timestamp?: string;
   }) => {
-    try {
-      const headers = this.headers(config.healthId);
-    const url = `${this.baseUrl}v0.5/patients/sms/notify2`;
-   
-    const body: any = {
-      requestId: uuidv4(),
-      timestamp: new Date().toISOString(),
-      "notification": {
-        "phoneNo":config.phoneNo,
-        "receiverName": config.patientName,
-        "careContextInfo": config.careContextInfo,
-        "deeplinkUrl": config.deeplinkUrl,
-        "hip": {
-          "name": config.facilityName,
-          "id": config.hipid
-        }
-      }
+    this.setXCmId(config.healthId);
+    const requestId = config.requestId ?? uuidv4();
+    const timestamp = config.timestamp ?? new Date().toISOString();
+    const headers = {
+      "REQUEST-ID": requestId,
+      TIMESTAMP: timestamp,
+      "X-CM-ID": this.xCmId,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${this.accessToken}`,
+    };
+    const url = `${this.baseUrl}api/hiecm/hip/v3/link/patient/links/sms/notify2`;
+    const body = {
+      requestId,
+      timestamp,
+      notification: {
+        phoneNo: config.phoneNo,
+        hip: {
+          name: config.hipName,
+          id: config.hipId,
+        },
+      },
     };
 
-    if (config.errCode) {
-      body.error = {
-        code: config.errCode,
-        message: config.errMessage || "Error occured",
-      };
-    }
-
-    const res=  await new Request().request({
-      headers: headers,
+    const response = await new Request().request({
+      headers,
       method: "POST",
       requestBody: body,
-      url: url,
+      url,
     });
 
-
-
-    return body;
-    } catch (error) {
-  console.log(error)
-    }
-    
+    return JSON.parse(response.body);
   };
 
   /**
