@@ -359,9 +359,11 @@ export default class Link extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
+
+    const normalizedAbhaNumber = String(config.abhaNumber).replace(/-/g, "");
     const url = `${this.baseUrl}/api/hiecm/v3/token/generate-token`;
     const body = {
-      abhaNumber: config.abhaNumber,
+      abhaNumber: normalizedAbhaNumber,
       abhaAddress: config.abhaAddress,
       name: config.name,
       gender: config.gender,
