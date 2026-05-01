@@ -73,7 +73,7 @@ export default class Link extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}hip/v3/link/carecontext`;
+    const url = `${this.baseUrl}/api/hiecm/hip/v3/link/carecontext`;
     const body = {
       abhaNumber: config.abhaNumber,
       abhaAddress: config.abhaAddress,
@@ -144,8 +144,7 @@ export default class Link extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}user-initiated-linking/v3/link/care-context/on-init`;
-
+    const url = `${this.baseUrl}/api/hiecm/user-initiated-linking/v3/link/care-context/on-init`
     const body: any = {
       transactionId: config.transactionId,
       link: {
@@ -227,7 +226,7 @@ export default class Link extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}user-initiated-linking/v3/link/care-context/on-confirm`;
+    const url = `${this.baseUrl}/api/hiecm/user-initiated-linking/v3/link/care-context/on-confirm`;
     const body = {
       patient: config.patients,
       response: {
@@ -293,7 +292,7 @@ export default class Link extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}hip/v3/link/context/notify`;
+    const url = `${this.baseUrl}/api/hiecm/hip/v3/link/context/notify`;
 
     const body = {
       notification: {
@@ -361,7 +360,7 @@ export default class Link extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}/v3/token/generate-token`;
+    const url = `${this.baseUrl}/api/hiecm/v3/token/generate-token`;
     const body = {
       abhaNumber: config.abhaNumber,
       abhaAddress: config.abhaAddress,

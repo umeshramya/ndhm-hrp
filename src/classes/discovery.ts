@@ -76,7 +76,7 @@ export default class Discovery extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}user-initiated-linking/v3/patient/care-context/on-discover`;
+    const url = `${this.baseUrl}/api/hiecm/user-initiated-linking/v3/patient/care-context/on-discover`;
 
     const body: any = {
       transactionId: config.transactionId,

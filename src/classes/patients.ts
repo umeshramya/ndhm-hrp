@@ -60,7 +60,7 @@ export default class Patients extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}api/hiecm/hip/v3/link/patient/links/sms/notify2`;
+    const url = `${this.baseUrl}/api/hiecm/hip/v3/link/patient/links/sms/notify2`;
     const body = {
       requestId,
       timestamp,
