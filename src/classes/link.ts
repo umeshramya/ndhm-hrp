@@ -73,7 +73,7 @@ export default class Link extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}api/hiecm/hip/v3/link/carecontext`;
+    const url = `${this.baseUrl}hip/v3/link/carecontext`;
     const body = {
       abhaNumber: config.abhaNumber,
       abhaAddress: config.abhaAddress,
@@ -100,7 +100,7 @@ export default class Link extends Header {
    * the token via `/link/care-context/confirm` against the `link.referenceNumber`.
    *
    * Uses the v3 HIE-CM endpoint per ABDM M2 Sandbox Documentation v2.8 (section 5.3.7):
-   * `POST /api/hiecm/user-initiated-linking/v3/link/care-context/on-init`
+   * `POST /user-initiated-linking/v3/link/care-context/on-init`
    *
    * Possible errors returned:
    * - Patient reference number is invalid
@@ -144,7 +144,7 @@ export default class Link extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}api/hiecm/user-initiated-linking/v3/link/care-context/on-init`;
+    const url = `${this.baseUrl}user-initiated-linking/v3/link/care-context/on-init`;
 
     const body: any = {
       transactionId: config.transactionId,
@@ -183,7 +183,7 @@ export default class Link extends Header {
    * the link via OTP/token (User Initiated Linking v3).
    *
    * This is the HIP's response to the HIE-CM callback at
-   * `{callback_url}/api/v3/hip/link/care-context/confirm` (section 5.3.10).
+   * `{callback_url}/api/v3hip/link/care-context/confirm` (section 5.3.10).
    * The HIP returns the confirmed care contexts that have been linked to the
    * patient's ABHA account.
    *
@@ -227,7 +227,7 @@ export default class Link extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}api/hiecm/user-initiated-linking/v3/link/care-context/on-confirm`;
+    const url = `${this.baseUrl}user-initiated-linking/v3/link/care-context/on-confirm`;
     const body = {
       patient: config.patients,
       response: {
@@ -253,7 +253,7 @@ export default class Link extends Header {
    * is already linked with the patient's ABHA account. This API should NOT be called
    * if the new health data is added under a new (unlinked) care context.
    *
-   * Uses the v3 HIE-CM endpoint `/api/hiecm/hip/v3/link/context/notify` per the
+   * Uses the v3 HIE-CM endpoint `/api/hiecmhip/v3/link/context/notify` per the
    * ABDM M2 Sandbox Documentation v2.8 (section 4.3.6).
    *
    * Headers are built inline following the v3 pattern used by `generateToken` and
@@ -293,7 +293,7 @@ export default class Link extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}api/hiecm/hip/v3/link/context/notify`;
+    const url = `${this.baseUrl}hip/v3/link/context/notify`;
 
     const body = {
       notification: {
@@ -361,7 +361,7 @@ export default class Link extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}api/hiecm/v3/token/generate-token`;
+    const url = `${this.baseUrl}/v3/token/generate-token`;
     const body = {
       abhaNumber: config.abhaNumber,
       abhaAddress: config.abhaAddress,
