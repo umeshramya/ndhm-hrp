@@ -11,8 +11,7 @@ type HI_TYPES =
   | "HealthDocumentRecord"
   | "WellnessRecord"
   | "InitialAssessment" // not part abdm
-  | "DietaryRecord"
-  
+  | "DietaryRecord";
 
 export default class Link extends Header {
   constructor(_baseUrl: string, _accessToken: string) {
@@ -144,7 +143,7 @@ export default class Link extends Header {
       "Content-Type": "application/json",
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const url = `${this.baseUrl}/api/hiecm/user-initiated-linking/v3/link/care-context/on-init`
+    const url = `${this.baseUrl}/api/hiecm/user-initiated-linking/v3/link/care-context/on-init`;
     const body: any = {
       transactionId: config.transactionId,
       link: {
@@ -368,7 +367,6 @@ export default class Link extends Header {
       gender: config.gender,
       yearOfBirth: config.yearOfBirth,
     };
-
     const response = await new Request().request({
       headers,
       method: "POST",
@@ -376,6 +374,25 @@ export default class Link extends Header {
       url,
     });
 
-    return JSON.parse(response.body);
+    const raw = response.body;
+
+    console.log("ABDM RAW RESPONSE:", raw);
+
+    // Case 1: already an object
+    if (typeof raw === "object") {
+      return raw;
+    }
+
+    // Case 2: string → try parse
+    if (typeof raw === "string") {
+      try {
+        return JSON.parse(raw);
+      } catch (err) {
+        throw new Error(`ABDM returned non-JSON response: ${raw}`);
+      }
+    }
+
+    // Fallback
+    throw new Error("Unexpected response type");
   };
 }
