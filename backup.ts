@@ -1,5 +1,4 @@
 import moment from "moment";
-import request from "request";
 import { v4 as uuidv4 } from 'uuid';
 import axios  from "axios";
 
@@ -29,25 +28,21 @@ export default class Patient {
 
             }
         }
-   
+
         const body = JSON.stringify(requestBody)
-        return new Promise((resolve, reject) => {
-            request(url, {
+        try {
+            const response = await fetch(url, {
                 headers: headers,
                 body: body,
                 method: "POST"
-            },
-                (err, res) => {
-                    if (err) {
-                        reject(err)
-                    } else {
-                        console.log(res.statusCode)
-                        resolve(res)
-                    }
-                }
-            )
-        })
-    
+            });
+            console.log(response.status);
+            const text = await response.text();
+            return { body: text, statusCode: response.status };
+        } catch (err) {
+            return Promise.reject(err);
+        }
+
         }
 
     }
