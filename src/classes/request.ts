@@ -20,7 +20,7 @@ export default class Request {
         body: body,
       });
       const text = await response.text();
-      return { body: text };
+      return { body: text, status: response.status, statusText: response.statusText };
     } catch (err) {
       console.log("ABDM request sent", JSON.stringify(requestBody), "ERROR", JSON.stringify(err));
       throw err;

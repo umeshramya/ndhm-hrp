@@ -80,7 +80,15 @@ export default class Patients extends Header {
       url,
     });
 
-    return JSON.parse(response.body);
+    try {
+      return JSON.parse(response.body);
+    } catch (err) {
+      throw new Error(
+        `smsNotify2: ABDM returned non-JSON response. ` +
+        `status=${response.status} (${response.statusText || 'unknown'}), ` +
+        `url=${url}. Body: ${String(response.body).slice(0, 500)}`
+      );
+    }
   };
 
   /**

@@ -86,7 +86,15 @@ export default class Link extends Header {
       url,
     });
 
-    return JSON.parse(response.body);
+    try {
+      return JSON.parse(response.body);
+    } catch (err) {
+      throw new Error(
+        `addCareContext: ABDM returned non-JSON response. ` +
+        `status=${response.status} (${response.statusText || 'unknown'}), ` +
+        `url=${url}. Body: ${String(response.body).slice(0, 500)}`
+      );
+    }
   };
 
   /**
@@ -390,7 +398,11 @@ export default class Link extends Header {
       try {
         return JSON.parse(raw);
       } catch (err) {
-        throw new Error(`ABDM returned non-JSON response: ${raw}`);
+        throw new Error(
+          `ABDM returned non-JSON response. ` +
+          `status=${response.status} (${response.statusText || 'unknown'}), ` +
+          `url=${url}. Body: ${String(raw).slice(0, 500)}`
+        );
       }
     }
 
