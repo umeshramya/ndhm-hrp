@@ -101,4 +101,68 @@ export default class Discovery extends Header {
 
     return body;
   };
+
+  /**
+   * HMIS/LMIS response to the HIE-CM discovery callback (v0.5).
+   *
+   * Legacy v0.5 endpoint for responding to patient discovery callbacks
+   * `POST /v0.5/care-contexts/on-discover`. The HIP returns matching patient(s)
+   * and their care contexts, or an error if no match was found.
+   *
+   * @param config - Configuration object
+   * @param config.healthId - Patient's ABHA address (e.g. "user@sbx") used to derive X-CM-ID
+   * @param config.transactionId - Transaction ID from the discovery callback, used for correlation
+   * @param config.patientReferenceNumber - Patient reference number in the HIP system
+   * @param config.patientDisplay - Display name for the patient
+   * @param config.careContexts - Array of care contexts with { referenceNumber, display }
+   * @param config.matchedBy - Array of matching criteria used (e.g. ["MR", "NAME", "DOB"])
+   * @param config.requestId - The `requestId` from the HIE-CM discovery callback, sent in `resp.requestId`
+   * @param config.errCode - Optional error code if no matching patient was found
+   * @param config.errMessage - Optional error message if no matching patient was found
+   * @returns The request body that was sent (for logging/reference)
+   */
+  onDiscovery_V0_5 = async (config: {
+    transactionId: string;
+    patientReferenceNumber: string;
+    patientDisplay: string;
+    careContexts: { referenceNumber: string; display: string }[];
+    matchedBy: string[];
+    errCode?: string;
+    errMessage?: string;
+    requestId: string;
+    healthId: string;
+  }) => {
+    const headers = this.headers(config.healthId);
+    const url = `${this.baseUrl}v0.5/care-contexts/on-discover`;
+    const body: any = {
+      requestId: uuidv4(),
+      timestamp: new Date().toISOString(),
+      transactionId: config.transactionId,
+      patient: {
+        referenceNumber: config.patientReferenceNumber,
+        display: config.patientDisplay,
+        careContexts: config.careContexts,
+        matchedBy: config.matchedBy,
+      },
+
+      resp: {
+        requestId: config.requestId,
+      },
+    };
+    if (config.errCode) {
+      body.error = {
+        code: config.errCode,
+        message: config.errMessage || "Error occured",
+      };
+    }
+
+    await new Request().request({
+      headers: headers,
+      method: "POST",
+      requestBody: body,
+      url: url,
+    });
+
+    return body;
+  };
 }
