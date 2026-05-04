@@ -133,7 +133,7 @@ export default class Discovery extends Header {
     healthId: string;
   }) => {
     const headers = this.headers(config.healthId);
-    const url = `${this.baseUrl}v0.5/care-contexts/on-discover`;
+    const url = `${this.baseUrl}/api/hiecm/v0.5/care-contexts/on-discover`;
     const body: any = {
       requestId: uuidv4(),
       timestamp: new Date().toISOString(),
