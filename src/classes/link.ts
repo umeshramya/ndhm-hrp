@@ -86,6 +86,8 @@ export default class Link extends Header {
       url,
     });
 
+    console.log(response)
+
     try {
       return JSON.parse(response.body);
     } catch (err) {
