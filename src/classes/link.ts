@@ -390,13 +390,25 @@ export default class Link extends Header {
 
     console.log("ABDM RAW RESPONSE:", raw);
 
-    // Case 1: already an object
+    // Case 1: 202 Accepted — async processing, body is typically empty
+    if (response.status === 202) {
+      return { status: 202 };
+    }
+
+    // Case 2: already an object
     if (typeof raw === "object") {
       return raw;
     }
 
-    // Case 2: string → try parse
+    // Case 3: string → try parse
     if (typeof raw === "string") {
+      if (raw.length === 0) {
+        throw new Error(
+          `ABDM returned an empty body. ` +
+          `status=${response.status} (${response.statusText || 'unknown'}), ` +
+          `url=${url}`
+        );
+      }
       try {
         return JSON.parse(raw);
       } catch (err) {
