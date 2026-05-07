@@ -86,17 +86,37 @@ export default class Link extends Header {
       url,
     });
 
-    console.log(response)
+    const raw = response.body;
 
-    try {
-      return JSON.parse(response.body);
-    } catch (err) {
-      throw new Error(
-        `addCareContext: ABDM returned non-JSON response. ` +
-        `status=${response.status} (${response.statusText || 'unknown'}), ` +
-        `url=${url}. Body: ${String(response.body).slice(0, 500)}`
-      );
+    // 202 Accepted — async processing, body is typically empty
+    if (response.status === 202) {
+      return { status: 202 };
     }
+
+    if (typeof raw === "object") {
+      return raw;
+    }
+
+    if (typeof raw === "string") {
+      if (raw.length === 0) {
+        throw new Error(
+          `ABDM returned an empty body. ` +
+          `status=${response.status} (${response.statusText || 'unknown'}), ` +
+          `url=${url}`
+        );
+      }
+      try {
+        return JSON.parse(raw);
+      } catch (err) {
+        throw new Error(
+          `addCareContext: ABDM returned non-JSON response. ` +
+          `status=${response.status} (${response.statusText || 'unknown'}), ` +
+          `url=${url}. Body: ${String(raw).slice(0, 500)}`
+        );
+      }
+    }
+
+    throw new Error("Unexpected response type");
   };
 
   /**
