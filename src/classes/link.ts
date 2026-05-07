@@ -73,10 +73,14 @@ export default class Link extends Header {
       Authorization: `Bearer ${this.accessToken}`,
     };
     const url = `${this.baseUrl}/api/hiecm/hip/v3/link/carecontext`;
+    const normalizedAbhaNumber = String(config.abhaNumber).replace(/-/g, "");
     const body = {
-      abhaNumber: config.abhaNumber,
+      abhaNumber: normalizedAbhaNumber,
       abhaAddress: config.abhaAddress,
-      patient: config.patients,
+      patient: config.patients.map((p) => ({
+        ...p,
+        hiType: p.hiType.toUpperCase() as HI_TYPES,
+      })),
     };
 
     const response = await new Request().request({
