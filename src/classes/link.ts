@@ -10,8 +10,7 @@ type HI_TYPES =
   | "DischargeSummary"
   | "HealthDocumentRecord"
   | "WellnessRecord"
-  | "InitialAssessment" // not part abdm
-  | "DietaryRecord";
+  | "Invoice";
 
 export default class Link extends Header {
   constructor(_baseUrl: string, _accessToken: string) {
@@ -77,10 +76,7 @@ export default class Link extends Header {
     const body = {
       abhaNumber: normalizedAbhaNumber,
       abhaAddress: config.abhaAddress,
-      patient: config.patients.map((p) => ({
-        ...p,
-        hiType: p.hiType.toUpperCase() as HI_TYPES,
-      })),
+      patient: config.patients,
     };
 
     const response = await new Request().request({
