@@ -196,14 +196,14 @@ export default class Link extends Header {
       body.error = config.error;
     }
 
-    await new Request().request({
+    const response = await new Request().request({
       headers,
       method: "POST",
       requestBody: body,
       url,
     });
 
-    return body;
+    return { requestBody: body, response };
   };
 
   /**
