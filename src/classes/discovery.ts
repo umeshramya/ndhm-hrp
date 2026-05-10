@@ -44,7 +44,7 @@ export default class Discovery extends Header {
    * @param config.error - Optional error object if no matching patient was found (code, message)
    * @param config.requestId - Optional UUID for REQUEST-ID header (auto-generated if omitted)
    * @param config.timestamp - Optional ISO timestamp for TIMESTAMP header (auto-generated if omitted)
-   * @returns The request body that was sent (for logging/reference)
+   * @returns The request body that was sent and the HTTP response from ABDM
    */
   onDiscovery = async (config: {
     healthId: string;
@@ -67,7 +67,15 @@ export default class Discovery extends Header {
     };
     requestId?: string;
     timestamp?: string;
-  }) => {
+  }): Promise<{
+    requestBody: any;
+    response: {
+      body: string;
+      status: number;
+      statusText: string;
+      headers: Headers;
+    };
+  }> => {
     this.setXCmId(config.healthId);
     const headers = {
       "REQUEST-ID": config.requestId ?? uuidv4(),
@@ -92,14 +100,14 @@ export default class Discovery extends Header {
       body.matchedBy = config.matchedBy;
     }
 
-    await new Request().request({
+    const response = await new Request().request({
       headers,
       method: "POST",
       requestBody: body,
       url,
     });
 
-    return body;
+    return { requestBody: body, response };
   };
 
   /**
@@ -119,7 +127,7 @@ export default class Discovery extends Header {
    * @param config.requestId - The `requestId` from the HIE-CM discovery callback, sent in `resp.requestId`
    * @param config.errCode - Optional error code if no matching patient was found
    * @param config.errMessage - Optional error message if no matching patient was found
-   * @returns The request body that was sent (for logging/reference)
+   * @returns The request body that was sent and the HTTP response from ABDM
    */
   onDiscovery_V0_5 = async (config: {
     transactionId: string;
@@ -131,7 +139,15 @@ export default class Discovery extends Header {
     errMessage?: string;
     requestId: string;
     healthId: string;
-  }) => {
+  }): Promise<{
+    requestBody: any;
+    response: {
+      body: string;
+      status: number;
+      statusText: string;
+      headers: Headers;
+    };
+  }> => {
     const headers = this.headers(config.healthId);
     const url = `${this.baseUrl}/api/hiecm/v0.5/care-contexts/on-discover`;
     const body: any = {
@@ -156,13 +172,13 @@ export default class Discovery extends Header {
       };
     }
 
-    await new Request().request({
+    const response = await new Request().request({
       headers: headers,
       method: "POST",
       requestBody: body,
       url: url,
     });
 
-    return body;
+    return { requestBody: body, response };
   };
 }
