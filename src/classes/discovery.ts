@@ -67,6 +67,7 @@ export default class Discovery extends Header {
     };
     requestId?: string;
     timestamp?: string;
+    createdAt?: string;
   }): Promise<{
     requestBody: any;
     response: {
@@ -88,6 +89,7 @@ export default class Discovery extends Header {
 
     const body: any = {
       transactionId: config.transactionId,
+      createdAt: config.createdAt ?? new Date().toISOString(),
       response: {
         requestId: config.callbackRequestId,
       },
