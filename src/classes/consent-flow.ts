@@ -64,6 +64,8 @@ export default class ConsentFlow extends Header {
         url,
       });
 
+      console.log("onhipNotify V3 ABDM response:", res.status, res.statusText, res.body?.slice(0, 500));
+
       return body;
     } catch (error) {
       console.log(error);
