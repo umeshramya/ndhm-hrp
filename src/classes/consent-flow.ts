@@ -7,56 +7,67 @@ export default class ConsentFlow extends Header {
     super(_baseUrl, _accessToken);
   }
   /**
-   * This API is called by HIP as acknowledgement to notification of consents, in cases of consent revocation and expiration.
-   * @param  config.healthId: string; phradddress or ABHA addrress of patient
-   * @param config.consentId: string; consent id recive by notify callback
-   * @param  config.requestId: string; request id as recived by notify callback
-   * @returns
+   * V3: HIP acknowledges consent notification from CM.
+   * Called in response to the CM callback POST {cb}/api/v3/consent/request/hip/notify.
+   *
+   * Endpoint: POST /api/hiecm/consent/v3/request/hip/on-notify
+   * Per ABDM M2 Sandbox Documentation v2.8, Section 6.3.2
+   *
+   * @param config.healthId - ABHA address used to derive X-CM-ID
+   * @param config.consentId - Consent ID from the notify callback
+   * @param config.callbackRequestId - The requestId from the HIE-CM callback, echoed in response.requestId
+   * @param config.requestId - Optional UUID for REQUEST-ID header
+   * @param config.timestamp - Optional ISO timestamp for TIMESTAMP header
+   * @param config.error - Optional error object { code, message }
+   * @returns The request body that was sent
    */
   onhipNotify = async (config: {
     healthId: string;
     consentId: string;
-    requestId: string;
-    errCode?: string;
-    errMessage?: string;
+    callbackRequestId: string;
+    requestId?: string;
+    timestamp?: string;
+    error?: {
+      code: string;
+      message: string;
+    };
   }) => {
     try {
-      const headers = this.headers(config.healthId);
-    const url = `${this.baseUrl}v0.5/consents/hip/on-notify`;
-   
-    const body: any = {
-      requestId: uuidv4(),
-      timestamp: new Date().toISOString(),
-      acknowledgement: {
-        status: "OK",
-        consentId: config.consentId,
-      },
-      resp: {
-        requestId: config.requestId,
-      },
-    };
-
-    if (config.errCode) {
-      body.error = {
-        code: config.errCode,
-        message: config.errMessage || "Error occured",
+      this.setXCmId(config.healthId);
+      const headers = {
+        "REQUEST-ID": config.requestId ?? uuidv4(),
+        TIMESTAMP: config.timestamp ?? new Date().toISOString(),
+        "X-CM-ID": this.xCmId,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.accessToken}`,
       };
-    }
+      const url = `${this.baseUrl}/api/hiecm/consent/v3/request/hip/on-notify`;
 
-    const res=  await new Request().request({
-      headers: headers,
-      method: "POST",
-      requestBody: body,
-      url: url,
-    });
+      const body: any = {
+        acknowledgement: {
+          status: config.error ? "ERROR" : "OK",
+          consentId: config.consentId,
+        },
+        response: {
+          requestId: config.callbackRequestId,
+        },
+      };
 
+      if (config.error) {
+        body.error = config.error;
+      }
 
+      const res = await new Request().request({
+        headers,
+        method: "POST",
+        requestBody: body,
+        url,
+      });
 
-    return body;
+      return body;
     } catch (error) {
-  console.log(error)
+      console.log(error);
     }
-    
   };
 
 /**

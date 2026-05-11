@@ -14,9 +14,27 @@ export default class HealthInformation extends Header {
   }
 
   /**
-   * Request for Health information against a consent id. CM would generate a transactionId against each consent and pass it as trnasaction context / correlation id to the HIP and also return the same to HIU via /on-request.
-   * @param config
-   * @returns
+   * V3: HIP notifies CM of data transfer status after pushing encrypted data to HIU.
+   * HIU notifies CM after receiving data.
+   *
+   * Endpoint: POST /api/hiecm/data-flow/v3/health-information/notify
+   * Per ABDM M2 Sandbox Documentation v2.8, Section 6.3.6
+   *
+   * HIP sends: sessionStatus = TRANSFERRED | FAILED, hiStatus = DELIVERED | ERRORED
+   * HIU sends: sessionStatus = RECEIVED | FAILED, hiStatus = OK | ERRORED
+   *
+   * @param config.healthId - ABHA address used to derive X-CM-ID
+   * @param config.consentId - Consent ID
+   * @param config.transactionId - Transaction ID from the HI request callback
+   * @param config.notifer - "HIP" or "HIU"
+   * @param config.notifierId - ID of notifier
+   * @param config.hipId - HIP facility ID
+   * @param config.sessionStatus - "TRANSFERRED" | "FAILED" for HIP, "RECEIVED" | "FAILED" for HIU
+   * @param config.statusResponses - Array of per-care-context statuses
+   * @param config.requestId - Optional UUID for REQUEST-ID header
+   * @param config.timestamp - Optional ISO timestamp for TIMESTAMP header
+   * @param config.error - Optional error object { code, message }
+   * @returns The request body that was sent
    */
   notify = async (config: {
     healthId: string;
@@ -26,17 +44,26 @@ export default class HealthInformation extends Header {
     notifierId: string;
     hipId: string;
     sessionStatus: "TRANSFERRED" | "FAILED";
-    errCode?: string;
-    errMessage?: string;
     statusResponses: STATUS_RESPONSES_HEALTH_INFORMATION_NOTIFY[];
+    requestId?: string;
+    timestamp?: string;
+    error?: {
+      code: string;
+      message: string;
+    };
   }) => {
     try {
-      const headers = this.headers(config.healthId);
-      const url = `${this.baseUrl}v0.5/health-information/notify`;
+      this.setXCmId(config.healthId);
+      const headers = {
+        "REQUEST-ID": config.requestId ?? uuidv4(),
+        TIMESTAMP: config.timestamp ?? new Date().toISOString(),
+        "X-CM-ID": this.xCmId,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.accessToken}`,
+      };
+      const url = `${this.baseUrl}/api/hiecm/data-flow/v3/health-information/notify`;
 
       const body: any = {
-        requestId: uuidv4(),
-        timestamp: new Date().toISOString(),
         notification: {
           consentId: config.consentId,
           transactionId: config.transactionId,
@@ -53,18 +80,15 @@ export default class HealthInformation extends Header {
         },
       };
 
-      if (config.errCode) {
-        body.error = {
-          code: config.errCode,
-          message: config.errMessage || "Error occured",
-        };
+      if (config.error) {
+        body.error = config.error;
       }
 
       const res = await new Request().request({
-        headers: headers,
+        headers,
         method: "POST",
         requestBody: body,
-        url: url,
+        url,
       });
 
       return body;

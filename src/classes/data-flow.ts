@@ -8,48 +8,61 @@ export default class DataFlow extends Header {
     super(_baseUrl, _accessToken);
   }
   /**
-   * API called by HIP to acknowledge Health information request receipt. Either the hiRequest or error must be specified. hiRequest element returns the same transactionId as before with a status indicating that the request is acknowledged.
-   * @param  config.healthId: string; phradddress or ABHA addrress of patient
-   * @param config.transactionId: string;  trasactionID recived by request callback
-   * @param  config.requestId: string; request id as recived by notify callback
-   * @returns
+   * V3: API called by HIP to acknowledge Health Information request receipt.
+   * Called in response to CM callback POST {cb}/api/v3/hip/health-information/request.
+   *
+   * Endpoint: POST /api/hiecm/data-flow/v3/health-information/hip/on-request
+   * Per ABDM M2 Sandbox Documentation v2.8, Section 6.3.4
+   *
+   * @param config.healthId - ABHA address used to derive X-CM-ID
+   * @param config.transactionId - Transaction ID from the HI request callback
+   * @param config.callbackRequestId - The requestId from the HIE-CM callback, echoed in response.requestId
+   * @param config.requestId - Optional UUID for REQUEST-ID header
+   * @param config.timestamp - Optional ISO timestamp for TIMESTAMP header
+   * @param config.error - Optional error object { code, message }
+   * @returns The request body that was sent
    */
   onhipRequest = async (config: {
     healthId: string;
     transactionId: string;
-    requestId: string;
-    errCode?: string;
-    errMessage?: string;
+    callbackRequestId: string;
+    requestId?: string;
+    timestamp?: string;
+    error?: {
+      code: string;
+      message: string;
+    };
   }) => {
     try {
-      const headers = this.headers(config.healthId);
-      const url = `${this.baseUrl}v0.5/health-information/hip/on-request`;
+      this.setXCmId(config.healthId);
+      const headers = {
+        "REQUEST-ID": config.requestId ?? uuidv4(),
+        TIMESTAMP: config.timestamp ?? new Date().toISOString(),
+        "X-CM-ID": this.xCmId,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.accessToken}`,
+      };
+      const url = `${this.baseUrl}/api/hiecm/data-flow/v3/health-information/hip/on-request`;
 
       const body: any = {
-        requestId: uuidv4(),
-        timestamp: new Date().toISOString(),
         hiRequest: {
           transactionId: config.transactionId,
           sessionStatus: "ACKNOWLEDGED",
         },
-
-        resp: {
-          requestId: config.requestId,
+        response: {
+          requestId: config.callbackRequestId,
         },
       };
 
-      if (config.errCode) {
-        body.error = {
-          code: config.errCode,
-          message: config.errMessage || "Error occured",
-        };
+      if (config.error) {
+        body.error = config.error;
       }
 
       const res = await new Request().request({
-        headers: headers,
+        headers,
         method: "POST",
         requestBody: body,
-        url: url,
+        url,
       });
 
       return body;
