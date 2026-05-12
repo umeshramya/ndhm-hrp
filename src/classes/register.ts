@@ -15,7 +15,7 @@ export default class Register {
     }
 
     /**
-     * 
+     *
      * @returns return access token in promise
      */
     getAccessToken = async (): Promise<any> => {
@@ -24,7 +24,7 @@ export default class Register {
             "clientSecret": this.clinetSecrete
         }
 
-        const url = `${this.baseUrl}v0.5/sessions` 
+        const url = `${this.baseUrl}v0.5/sessions`
         const headers = {
             "Content-Type": "application/json"
         }

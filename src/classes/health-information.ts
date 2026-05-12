@@ -97,6 +97,12 @@ export default class HealthInformation extends Header {
     }
   };
 
+  /**
+   * V3: HIU requests health information from HIP via CM.
+   * Called after HIU receives GRANTED consent notification.
+   *
+   * Endpoint: POST /api/hiecm/data-flow/v3/health-information/request
+   */
   cmRequest = async (config: {
     healthId: string;
     consentId: string;
@@ -108,16 +114,25 @@ export default class HealthInformation extends Header {
     expireDate: string;
     nounce: string;
     dataPushUrl: string;
+    hiuId?: string;
     errCode?: any;
     errMessage?: any;
   }) => {
     try {
-      const headers = this.headers(config.healthId);
-      const url = `${this.baseUrl}v0.5/health-information/cm/request`;
+      this.setXCmId(config.healthId);
+      const headers: any = {
+        "REQUEST-ID": uuidv4(),
+        TIMESTAMP: new Date().toISOString(),
+        "X-CM-ID": this.xCmId,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.accessToken}`,
+      };
+      if (config.hiuId) {
+        headers["X-HIU-ID"] = config.hiuId;
+      }
+      const url = `${this.baseUrl}/api/hiecm/data-flow/v3/health-information/request`;
 
-      const body :HIU_CM_REQUEST= {
-        requestId: uuidv4(),
-        timestamp: new Date().toISOString(),
+      const body: HIU_CM_REQUEST = {
         hiRequest: {
           consent: {
             id: config.consentId,
@@ -145,11 +160,26 @@ export default class HealthInformation extends Header {
       }
 
       const res = await new Request().request({
-        headers: headers,
+        headers,
         method: "POST",
         requestBody: body,
-        url: url,
+        url,
       });
+
+      console.log("cmRequest V3 ABDM response:", res.status, res.statusText, res.body?.slice(0, 500));
+
+      // Merge CM response fields into the returned body
+      if (res.body) {
+        try {
+          const resBody = JSON.parse(res.body);
+          if (resBody.transactionId) {
+            body.hiRequest.transactionId = resBody.transactionId;
+          }
+          if (resBody.requestId) {
+            (body as any).requestId = resBody.requestId;
+          }
+        } catch {}
+      }
 
       return body;
     } catch (error) {
@@ -160,7 +190,9 @@ export default class HealthInformation extends Header {
 
 
 /**
- * This interface is Cm_request decrypt keys
+ * V3 HIU_CM_REQUEST — requestId/timestamp moved to V3 inline headers.
+ * privateKey, transactionId, xhiuid, healthId, status are local-only fields
+ * set by the caller after cmRequest() returns.
  */
 export interface HIU_CM_REQUEST {
   hiRequest: {
@@ -182,17 +214,12 @@ export interface HIU_CM_REQUEST {
         parameters: string
       }
     }
-    /**
-     * private key is only for local storage not be sent along api call
-     */
-    privateKey?:string
-    transactionId?:string
-    xhiuid?:string;
-    healthId?:string;
-    status?:string
+    privateKey?: string
+    transactionId?: string
+    xhiuid?: string;
+    healthId?: string;
+    status?: string
   }
-  requestId: string
-  timestamp: string;
   error?: {
     code: any,
     message: any

@@ -72,11 +72,15 @@ export default class ConsentFlow extends Header {
     }
   };
 
-/**
- * This API send fectch request from HIU after patient has and granted this is called by hiu/noitfy callback from gateway
- * @param config 
- * @returns 
- */
+  /**
+   * V3: HIU fetches consent artifact from CM.
+   * Called after HIU receives consent notification with consentArtefact IDs.
+   *
+   * Endpoint: POST /api/hiecm/consent/v3/fetch
+   *
+   * @param config.healthId - ABHA address used to derive X-CM-ID
+   * @param config.consentId - Consent artifact ID to fetch
+   */
   hiuConsentFetch = async (config: {
     healthId: string;
     consentId: string;
@@ -84,83 +88,93 @@ export default class ConsentFlow extends Header {
     errMessage?: string;
   }) => {
     try {
-      const headers = this.headers(config.healthId);
-    const url = `${this.baseUrl}v0.5/consents/fetch`;
-   
-    const body: any = {
-      requestId: uuidv4(),
-      timestamp: new Date().toISOString(),
-      "consentId": config.consentId
-    };
-
-    if (config.errCode) {
-      body.error = {
-        code: config.errCode,
-        message: config.errMessage || "Error occured",
+      this.setXCmId(config.healthId);
+      const headers = {
+        "REQUEST-ID": uuidv4(),
+        TIMESTAMP: new Date().toISOString(),
+        "X-CM-ID": this.xCmId,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.accessToken}`,
       };
-    }
+      const url = `${this.baseUrl}/api/hiecm/consent/v3/fetch`;
 
-    const res=  await new Request().request({
-      headers: headers,
-      method: "POST",
-      requestBody: body,
-      url: url,
-    });
+      const body: any = {
+        consentId: config.consentId,
+      };
 
+      if (config.errCode) {
+        body.error = {
+          code: config.errCode,
+          message: config.errMessage || "Error occured",
+        };
+      }
 
+      const res = await new Request().request({
+        headers,
+        method: "POST",
+        requestBody: body,
+        url,
+      });
 
-    return body;
+      return body;
     } catch (error) {
-  console.log(error)
+      console.log(error);
     }
-    
   };
 
 
+  /**
+   * V3: HIU responds to consent notification status from CM.
+   * Called when consent is DENIED/EXPIRED/REVOKED to update status.
+   *
+   * Endpoint: POST /api/hiecm/consent/v3/request/status
+   */
   onhiuNotify = async (config: {
     healthId: string;
-    acknowledgement:      {
-      "status": "OK" | "UNKNOWN",
-      "consentId": string
+    acknowledgement: {
+      status: "OK" | "UNKNOWN";
+      consentId: string;
     }[];
     requestId: string;
     errCode?: string;
     errMessage?: string;
   }) => {
     try {
-      const headers = this.headers(config.healthId);
-    const url = `${this.baseUrl}v0.5/consents/hiu/on-notify`;
-   
-    const body: any = {
-      requestId: uuidv4(),
-      timestamp: new Date().toISOString(),
-      "acknowledgement":config.acknowledgement,
-      "resp": {
-        "requestId": config.requestId
-      }
-    }
-
-    if (config.errCode) {
-      body.error = {
-        code: config.errCode,
-        message: config.errMessage || "Error occured",
+      this.setXCmId(config.healthId);
+      const headers = {
+        "REQUEST-ID": uuidv4(),
+        TIMESTAMP: new Date().toISOString(),
+        "X-CM-ID": this.xCmId,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.accessToken}`,
       };
-    }
+      const url = `${this.baseUrl}/api/hiecm/consent/v3/request/hiu/on-notify`;
 
-    const res=  await new Request().request({
-      headers: headers,
-      method: "POST",
-      requestBody: body,
-      url: url,
-    });
+      const body: any = {
+        acknowledgement: config.acknowledgement,
+        response: {
+          requestId: config.requestId,
+        },
+      };
 
+      if (config.errCode) {
+        body.error = {
+          code: config.errCode,
+          message: config.errMessage || "Error occured",
+        };
+      }
 
+      const res = await new Request().request({
+        headers,
+        method: "POST",
+        requestBody: body,
+        url,
+      });
 
-    return body;
+      return body;
     } catch (error) {
-  console.log(error)
+      console.log(error);
     }
-    
   };
 
 
