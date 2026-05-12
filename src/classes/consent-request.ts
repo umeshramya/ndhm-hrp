@@ -14,7 +14,7 @@ export interface CONSENTFLOW_REQUEST_INIT {
   healthId: string;
   errCode?: string;
   errMessage?: string;
-  purpose: typeof PurposeArray[number];
+  purpose: typeof PurposeArray[number] & { refUri?: string };
   hipId?: string;
   careContexts?: {
     patientReference: string;
@@ -64,28 +64,34 @@ export default class ConsentRequest extends Header {
     super(_baseUrl, _accessToken);
   }
   /**
-   * Creates a consent request to get data about a patient by HIU user.
+   * Creates a consent request to get data about a patient by HIU user (V3).
+   * Endpoint: POST /api/hiecm/consent/v3/request/init
    * @param config
-   * @returns
+   * @returns { requestId } - the REQUEST-ID header value for callback lookup
    */
   init = async (config: CONSENTFLOW_REQUEST_INIT) => {
     try {
-      const headers = this.headers(config.healthId);
-      const url = `${this.baseUrl}v0.5/consent-requests/init`;
+      this.setXCmId(config.healthId);
+      const requestId = uuidv4();
+      const headers = {
+        "REQUEST-ID": requestId,
+        TIMESTAMP: new Date().toISOString(),
+        "X-CM-ID": this.xCmId,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.accessToken}`,
+      };
+      const url = `${this.baseUrl}/api/hiecm/consent/v3/request/init`;
 
       const body: any = {
-        requestId: uuidv4(),
-        timestamp: new Date().toISOString(),
         consent: {
-          purpose: {
-            text: config.purpose.display,
-            code: config.purpose.code,
-            refUri: "",
-          },
           patient: {
             id: config.healthId,
           },
-
+          purpose: {
+            text: config.purpose.display,
+            code: config.purpose.code,
+            refUri: config.purpose.refUri || "http://terminology.hl7.org/ValueSet/v3-PurposeOfUse",
+          },
           hiu: {
             id: config.hiu,
           },
@@ -101,7 +107,7 @@ export default class ConsentRequest extends Header {
       };
 
       if (config.hipId) {
-        body.hip = {
+        body.consent.hip = {
           id: config.hipId,
         };
       }
@@ -114,7 +120,7 @@ export default class ConsentRequest extends Header {
         config.careContexts.forEach((el) => {
           careContexts.push(el);
         });
-        body.careContexts = careContexts;
+        body.consent.careContexts = careContexts;
       }
       if (config.errCode) {
         body.error = {
@@ -124,24 +130,33 @@ export default class ConsentRequest extends Header {
       }
 
       const res = await new Request().request({
-        headers: headers,
+        headers,
         method: "POST",
         requestBody: body,
-        url: url,
+        url,
       });
 
-      return body;
+      console.log("V3 CONSENT REQUEST INIT RESPONSE:", {
+        status: res.status,
+        statusText: res.statusText,
+        body: res.body?.slice(0, 1000),
+        requestId,
+        url,
+        requestBody: JSON.stringify(body).slice(0, 500),
+      });
+
+      return { requestId };
     } catch (error) {
       console.log(error);
     }
   };
 /**
  * creates a request for subscription. The subscription categories can be for care-contexts linkages or availability of data against existing care-contexts. Note that the requester must have HIU role
- * @param config 
- * @returns 
+ * @param config
+ * @returns
  */
 
-  
+
 
   status = async (config: { healthId: string; consentRequestId: string }) => {
     try {
@@ -167,13 +182,3 @@ export default class ConsentRequest extends Header {
     }
   };
 }
-
-
-
-
-
-
-
-
-
-
