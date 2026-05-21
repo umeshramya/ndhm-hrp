@@ -147,7 +147,8 @@ export default class ConsentRequest extends Header {
 
       return { requestId };
     } catch (error) {
-      console.log(error);
+      console.error("ConsentRequest.init() failed:", error);
+      throw error;
     }
   };
 /**
@@ -178,7 +179,8 @@ export default class ConsentRequest extends Header {
 
       return body;
     } catch (error) {
-      console.log(error);
+      console.error("ConsentRequest.status() failed:", error);
+      throw error;
     }
   };
 }

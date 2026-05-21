@@ -49,7 +49,7 @@ export default class Request {
       : undefined;
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
     try {
       const response = await fetch(config.url, {
