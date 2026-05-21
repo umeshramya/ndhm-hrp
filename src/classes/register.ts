@@ -90,18 +90,11 @@ export default class Register {
         endpointUrl: string, facilityId: string, facilityName: string, facilityType: string
     }): Promise<string> => {
         const accesstoken = (await this.getAccessToken().then(res => JSON.parse(res))).accessToken
-        await this.updateHealthcareUrl(accesstoken, config.endpointUrl)
-
-        await this.registerFacility(accesstoken,
-            {
-                "active": true,
-                "alias": ["Eg"],
-                "id": config.facilityId,
-                "name": config.facilityName,
-                "type": config.facilityType
-            })
+        // Bridge URL update (updateHealthcareUrl) and facility registration
+        // (registerFacility) are one-time setup steps handled through the
+        // HSPSBX portal (https://hspsbx.abdm.gov.in/). They are NOT required
+        // per session in the M3 flow.
         return accesstoken;
-
     }
 
 
