@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import Request from "./request";
 
 export default class Register {
@@ -8,25 +9,26 @@ export default class Register {
     constructor(_cleintId: string, _clientSecrete: string, _baseUrl?: string ) {
         this.clientID = _cleintId;
         this.clinetSecrete = _clientSecrete;
-        // this.baseUrl = _baseUrl;
-        // this code had to be changed in prodcution
-        this.baseUrl = process.env.REGISTER_BASE_URL_NDHM  || `https://dev.abdm.gov.in/`
-    
+        this.baseUrl = process.env.REGISTER_BASE_URL_NDHM || `https://dev.abdm.gov.in`
     }
 
     /**
-     *
-     * @returns return access token in promise
+     * Obtain a V3 session token from ABDM gateway.
+     * POST {baseUrl}/api/hiecm/gateway/v3/sessions
      */
     getAccessToken = async (): Promise<any> => {
         const body = {
             "clientId": this.clientID,
-            "clientSecret": this.clinetSecrete
+            "clientSecret": this.clinetSecrete,
+            "grantType": "client_credentials"
         }
 
-        const url = `${this.baseUrl}v0.5/sessions`
+        const url = `${this.baseUrl}/api/hiecm/gateway/v3/sessions`
         const headers = {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "REQUEST-ID": uuidv4(),
+            "TIMESTAMP": new Date().toISOString(),
+            "X-CM-ID": process.env.NDHM_X_CM_ID || "sbx"
         }
 
         return new Request().request({
