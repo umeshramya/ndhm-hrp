@@ -207,12 +207,23 @@ export default class Participant {
     return resp.data;
   }
 
-  async fetchPartipants(partipitantType: "PROVIDER" | "PAYER") {
-    const body = {
+  async fetchPartipants(
+    partipitantType: "PROVIDER" | "PAYER",
+    entitytype?: string
+  ) {
+    const body: {
+      role: "PROVIDER" | "PAYER";
+      fromdate: string;
+      todate: string;
+      entitytype?: string;
+    } = {
       role: partipitantType,
       fromdate: `01/01/1970`,
       todate: `01/01/${new Date().getFullYear() + 1}`,
     };
+    if (entitytype) {
+      body.entitytype = entitytype;
+    }
     const resp = await axios.post(`${this.url}/fetch/participants/list`, body, {
       headers: this.heeder as any,
     });
